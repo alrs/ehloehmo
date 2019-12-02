@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"image/jpeg"
+	"io"
 	"log"
 	"os"
 )
@@ -14,10 +15,17 @@ func main() {
 		log.Fatal(err)
 	}
 	defer f.Close()
-
-	img, err := jpeg.Decode(f)
+	count, err := countColors(f)
 	if err != nil {
 		log.Fatal(err)
+	}
+	log.Print(count)
+}
+
+func countColors(r io.Reader) (int, error) {
+	img, err := jpeg.Decode(r)
+	if err != nil {
+		return 0, err
 	}
 
 	bounds := img.Bounds()
@@ -28,7 +36,7 @@ func main() {
 			colorCount[ycbcr]++
 		}
 	}
-	log.Print(len(colorCount))
+	return len(colorCount), nil
 }
 
 func hexRGB(c color.YCbCr) {

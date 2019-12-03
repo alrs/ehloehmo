@@ -62,8 +62,14 @@ func countColors(r io.ReadCloser) (int, error) {
 	colorCount := make(map[color.YCbCr]int64) //, (bounds.Max.X * bounds.Max.Y))
 	for xi := 0; xi < bounds.Max.X; xi++ {
 		for yi := 0; yi < bounds.Max.Y; yi++ {
-			ycbcr := img.At(xi, yi).(color.YCbCr)
-			colorCount[ycbcr]++
+			at := img.At(xi, yi)
+			switch at.(type) {
+			case color.YCbCr:
+				ycbcr := at.(color.YCbCr)
+				colorCount[ycbcr]++
+			default:
+				return 0, fmt.Errorf("image is not YCbCr")
+			}
 		}
 	}
 	return len(colorCount), nil

@@ -1,19 +1,15 @@
 package main
 
 import (
-	"fmt"
+	//	"fmt"
 	"github.com/alrs/ehloehmo"
-	"image/color"
+	//	"github.com/davecgh/go-spew/spew"
+	//	"image/color"
 	"log"
 	"net/url"
 	"os"
 	"sync"
 )
-
-func hexRGB(c color.YCbCr) {
-	r, g, b := color.YCbCrToRGB(c.Y, c.Cb, c.Cr)
-	fmt.Printf("r:%d g:%d b:%d hex: %02x%02x%02x\n", r, g, b, r, g, b)
-}
 
 func main() {
 	list, err := os.Open("input.txt")
@@ -55,12 +51,25 @@ func main() {
 				return
 			}
 			defer b.Close()
-			count, err := ehloehmo.CountColors(b)
+			cc, err := ehloehmo.ColorCounts(b)
 			if err != nil {
 				log.Printf("error counting colors in %s: %v", u.String(), err)
 				return
 			}
-			log.Printf("%s: %d colors", u.String(), count)
+
+			if len(cc) < 3 {
+				for _, tt := range ehloehmo.SortColorCounts(cc) {
+					log.Printf("%s %s", u.String(), tt.HexKey())
+				}
+			} else {
+				topThree := ehloehmo.SortColorCounts(cc)[len(cc)-3:]
+				for _, tt := range topThree {
+					log.Printf("%s %s", u.String(), tt.HexKey())
+					//		log.Printf("%s , u.String(), spew.Sdump(ehloehmo.SortColorCounts(cc)[len(cc)-3:]))
+				}
+			}
+			//spew.Dump(ehloehmo.SortColorCounts(cc)[len(cc)-4:])
+			//log.Printf("%s: %d colors", u.String(), count)
 		}()
 	}
 	wg.Wait()

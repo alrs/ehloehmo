@@ -1,4 +1,4 @@
-package main
+package ehloehmo
 
 import (
 	"fmt"
@@ -7,7 +7,8 @@ import (
 	"io"
 )
 
-func countColors(r io.ReadCloser) (int, error) {
+// CountColors counts the number of colors in a JPEG.
+func CountColors(r io.ReadCloser) (int, error) {
 	img, err := jpeg.Decode(r)
 	if err != nil {
 		return 0, err
@@ -18,6 +19,8 @@ func countColors(r io.ReadCloser) (int, error) {
 	for xi := 0; xi < bounds.Max.X; xi++ {
 		for yi := 0; yi < bounds.Max.Y; yi++ {
 			at := img.At(xi, yi)
+			// this should always come up as color.YCbCr with .jpeg images, but
+			// it's a big Internet out there
 			switch at.(type) {
 			case color.YCbCr:
 				ycbcr := at.(color.YCbCr)

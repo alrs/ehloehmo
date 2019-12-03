@@ -1,4 +1,4 @@
-package main
+package ehloehmo
 
 import (
 	"bufio"
@@ -10,7 +10,8 @@ import (
 	"strings"
 )
 
-func getJPEG(u *url.URL) (io.ReadCloser, error) {
+// GetFile retrieves a file from a URL.
+func GetFile(u *url.URL) (io.ReadCloser, error) {
 	resp, err := http.Get(u.String())
 	if err != nil {
 		return nil, err
@@ -21,7 +22,9 @@ func getJPEG(u *url.URL) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func isJPEG(u *url.URL) bool {
+// IsJPEG checks the filename extension of a given URL to determine if it
+// is a jpeg.
+func IsJPEG(u *url.URL) bool {
 	ep := u.EscapedPath()
 	sp := strings.Split(ep, ".")
 	ext := sp[len(sp)-1]
@@ -31,7 +34,9 @@ func isJPEG(u *url.URL) bool {
 	return false
 }
 
-func readURLS(r io.Reader, uc chan *url.URL) {
+// ReadURLS iterates over a list of newline-separated URL strings in
+// an io.Reader.
+func ReadURLS(r io.Reader, uc chan *url.URL) {
 	defer close(uc)
 	scanner := bufio.NewScanner(r)
 	var lineNum uint64

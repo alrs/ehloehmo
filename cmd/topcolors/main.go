@@ -2,14 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/alrs/ehloehmo"
 	"image/color"
 	"log"
 	"net/url"
 	"os"
 	"sync"
 )
-
-const arbitraryMagicNumber = 999
 
 func hexRGB(c color.YCbCr) {
 	r, g, b := color.YCbCrToRGB(c.Y, c.Cb, c.Cr)
@@ -22,10 +21,10 @@ func main() {
 		log.Fatalf("error opening file: %v", err)
 	}
 	defer list.Close()
-	history := newHistory()
+	history := ehloehmo.NewHistory()
 	urlChan := make(chan *url.URL, 10)
 
-	go readURLS(list, urlChan)
+	go ehloehmo.ReadURLS(list, urlChan)
 
 	var wg sync.WaitGroup
 	for {
@@ -35,28 +34,28 @@ func main() {
 		}
 
 		go func() {
-			if !isJPEG(u) {
+			if !ehloehmo.IsJPEG(u) {
 				log.Printf("%s does not look to be a jpeg, ignoring", u.String())
 				return
 			}
 			history.Lock()
-			if history.check(u) {
+			if history.Check(u) {
 				log.Printf("%s already processed, ignoring", u.String())
 				history.Unlock()
 				return
 			}
-			history.record(u)
+			history.Record(u)
 			history.Unlock()
 
 			wg.Add(1)
 			defer wg.Done()
-			b, err := getJPEG(u)
+			b, err := ehloehmo.GetFile(u)
 			if err != nil {
 				log.Print(err)
 				return
 			}
 			defer b.Close()
-			count, err := countColors(b)
+			count, err := ehloehmo.CountColors(b)
 			if err != nil {
 				log.Printf("error counting colors in %s: %v", u.String(), err)
 				return

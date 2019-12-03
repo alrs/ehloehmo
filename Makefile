@@ -6,5 +6,6 @@ bin:
 
 .PHONY: clean
 clean:
+	@rm -rf /tmp/topcolors.csv
 	@rm -rf bin
 	@rm -rf /tmp/topcolors.db

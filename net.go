@@ -1,11 +1,9 @@
 package ehloehmo
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -42,21 +40,4 @@ func IsJPEG(u *url.URL) bool {
 		return true
 	}
 	return false
-}
-
-// ReadURLS iterates over a list of newline-separated URL strings in
-// an io.Reader.
-func ReadURLS(r io.Reader, uc chan *url.URL) {
-	defer close(uc)
-	scanner := bufio.NewScanner(r)
-	var lineNum uint64
-	for scanner.Scan() {
-		lineNum++
-		u, err := url.Parse(scanner.Text())
-		if err != nil {
-			log.Printf("parse error line %d: %v", lineNum, err)
-			continue
-		}
-		uc <- u
-	}
 }

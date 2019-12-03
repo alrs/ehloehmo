@@ -7,3 +7,4 @@ bin:
 .PHONY: clean
 clean:
 	@rm -rf bin
+	@rm -rf /tmp/topcolors.db

@@ -20,11 +20,24 @@ type Pair struct {
 // HexKey returns the RGB hex value of a Pair Key.
 func (p *Pair) HexKey() string {
 	r, g, b := color.YCbCrToRGB(p.Key.Y, p.Key.Cb, p.Key.Cr)
-	return fmt.Sprintf("%02x%02x%02x\n", r, g, b)
+	return fmt.Sprintf("%02x%02x%02x", r, g, b)
 }
 
 // PairList is a slice of Pair structs.
 type PairList []Pair
+
+// CSVReady returns a string slice ready for CSV marshaling.
+func (pl PairList) CSVReady() ([]string, error) {
+	out := make([]string, 3)
+	if len(pl) < 1 {
+		return out,
+			fmt.Errorf("a populated pairlist should have at least one color")
+	}
+	for i := 0; i < 3; i++ {
+		out[i] = pl[len(pl)-(1+i)].HexKey()
+	}
+	return out, nil
+}
 
 // Len helps PairList satisfy the sort.Sort() interface.
 func (pl PairList) Len() int { return len(pl) }

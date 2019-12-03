@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	list, err := os.Open("input.txt")
+	list, err := os.Open("testdata/input.txt")
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}
@@ -57,19 +57,15 @@ func main() {
 				return
 			}
 
-			if len(cc) < 3 {
-				for _, tt := range ehloehmo.SortColorCounts(cc) {
-					log.Printf("%s %s", u.String(), tt.HexKey())
-				}
-			} else {
-				topThree := ehloehmo.SortColorCounts(cc)[len(cc)-3:]
-				for _, tt := range topThree {
-					log.Printf("%s %s", u.String(), tt.HexKey())
-					//		log.Printf("%s , u.String(), spew.Sdump(ehloehmo.SortColorCounts(cc)[len(cc)-3:]))
-				}
+			sorted := ehloehmo.SortColorCounts(cc)
+			topThree, err := sorted.CSVReady()
+			if err != nil {
+				log.Printf("error sorting colors: %v", err)
+				return
 			}
-			//spew.Dump(ehloehmo.SortColorCounts(cc)[len(cc)-4:])
-			//log.Printf("%s: %d colors", u.String(), count)
+			result := []string{u.String()}
+			result = append(result, topThree...)
+			log.Printf("%s", result)
 		}()
 	}
 	wg.Wait()

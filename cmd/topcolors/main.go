@@ -1,10 +1,8 @@
 package main
 
 import (
-	//	"fmt"
+	"encoding/csv"
 	"github.com/alrs/ehloehmo"
-	//	"github.com/davecgh/go-spew/spew"
-	//	"image/color"
 	"log"
 	"net/url"
 	"os"
@@ -14,9 +12,19 @@ import (
 func main() {
 	list, err := os.Open("testdata/input.txt")
 	if err != nil {
-		log.Fatalf("error opening file: %v", err)
+		log.Fatalf("error opening input file: %v", err)
 	}
 	defer list.Close()
+
+	outFile, err := os.Create("/tmp/out.csv")
+	if err != nil {
+		log.Fatalf("error opening output file: %v", err)
+	}
+	defer outFile.Close()
+
+	writer := csv.NewWriter(outFile)
+	defer writer.Flush()
+
 	history := ehloehmo.NewHistory()
 	urlChan := make(chan *url.URL, 10)
 
@@ -65,7 +73,10 @@ func main() {
 			}
 			result := []string{u.String()}
 			result = append(result, topThree...)
-			log.Printf("%s", result)
+			err = writer.Write(result)
+			if err != nil {
+				log.Fatalf("error writing to CSV: %v", err)
+			}
 		}()
 	}
 	wg.Wait()

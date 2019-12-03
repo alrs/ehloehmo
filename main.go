@@ -1,108 +1,19 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"hash/crc32"
 	"image/color"
-	"image/jpeg"
-	"io"
 	"log"
-	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"sync"
 )
 
 const arbitraryMagicNumber = 999
 
-type urlHistory struct {
-	table     *crc32.Table
-	checksums map[uint32]struct{}
-	sync.Mutex
-}
-
-func (uh *urlHistory) check(u *url.URL) bool {
-	c := crc32.Checksum([]byte(u.String()), uh.table)
-	_, ok := uh.checksums[c]
-	return ok
-}
-
-func (uh *urlHistory) record(u *url.URL) {
-	c := crc32.Checksum([]byte(u.String()), uh.table)
-	uh.checksums[c] = struct{}{}
-}
-
-func newHistory() *urlHistory {
-	uh := urlHistory{}
-	uh.checksums = make(map[uint32]struct{})
-	uh.table = crc32.MakeTable(arbitraryMagicNumber)
-	return &uh
-}
-
-func getJPEG(u *url.URL) (io.ReadCloser, error) {
-	resp, err := http.Get(u.String())
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("bad http status on %s: %s", u, resp.Status)
-	}
-	return resp.Body, nil
-}
-
-func countColors(r io.ReadCloser) (int, error) {
-	img, err := jpeg.Decode(r)
-	if err != nil {
-		return 0, err
-	}
-
-	bounds := img.Bounds()
-	colorCount := make(map[color.YCbCr]int64) //, (bounds.Max.X * bounds.Max.Y))
-	for xi := 0; xi < bounds.Max.X; xi++ {
-		for yi := 0; yi < bounds.Max.Y; yi++ {
-			at := img.At(xi, yi)
-			switch at.(type) {
-			case color.YCbCr:
-				ycbcr := at.(color.YCbCr)
-				colorCount[ycbcr]++
-			default:
-				return 0, fmt.Errorf("image is not YCbCr")
-			}
-		}
-	}
-	return len(colorCount), nil
-}
-
 func hexRGB(c color.YCbCr) {
 	r, g, b := color.YCbCrToRGB(c.Y, c.Cb, c.Cr)
 	fmt.Printf("r:%d g:%d b:%d hex: %02x%02x%02x\n", r, g, b, r, g, b)
-}
-
-func readURLS(r io.Reader, uc chan *url.URL) {
-	defer close(uc)
-	scanner := bufio.NewScanner(r)
-	var lineNum uint64
-	for scanner.Scan() {
-		lineNum++
-		u, err := url.Parse(scanner.Text())
-		if err != nil {
-			log.Print("parse error line %d: %v", lineNum, err)
-			continue
-		}
-		uc <- u
-	}
-}
-
-func isJPEG(u *url.URL) bool {
-	ep := u.EscapedPath()
-	sp := strings.Split(ep, ".")
-	ext := sp[len(sp)-1]
-	if strings.ToLower(ext) == "jpg" || strings.ToLower(ext) == "jpeg" {
-		return true
-	}
-	return false
 }
 
 func main() {

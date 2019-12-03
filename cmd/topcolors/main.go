@@ -85,7 +85,9 @@ func main() {
 	scanner := bufio.NewScanner(input)
 	var lineNum uint64
 	for scanner.Scan() {
+		text := scanner.Text()
 		func() {
+
 			// one transaction per loop
 			tx, err := db.Begin(true)
 			if err != nil {
@@ -107,7 +109,7 @@ func main() {
 
 			// read a URL from the input file
 			lineNum++
-			u, err := url.Parse(scanner.Text())
+			u, err := url.Parse(text)
 			if err != nil {
 				log.Printf("parse error line %d: %v", lineNum, err)
 				return

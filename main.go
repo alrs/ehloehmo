@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -88,6 +89,16 @@ func readURLS(r io.Reader, uc chan *url.URL) {
 	}
 }
 
+func isJPEG(u *url.URL) bool {
+	ep := u.EscapedPath()
+	sp := strings.Split(ep, ".")
+	ext := sp[len(sp)-1]
+	if strings.ToLower(ext) == "jpg" || strings.ToLower(ext) == "jpeg" {
+		return true
+	}
+	return false
+}
+
 func main() {
 	list, err := os.Open("input.txt")
 	if err != nil {
@@ -107,6 +118,10 @@ func main() {
 		}
 
 		go func() {
+			if !isJPEG(u) {
+				log.Printf("%s does not look to be a jpeg, ignoring", u.String())
+				return
+			}
 			history.Lock()
 			if history.check(u) {
 				log.Printf("%s already processed, ignoring", u.String())

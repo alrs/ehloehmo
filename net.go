@@ -2,17 +2,27 @@ package ehloehmo
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // GetFile retrieves a file from a URL.
 func GetFile(u *url.URL) (io.ReadCloser, error) {
-	resp, err := http.Get(u.String())
+	timeout := time.Duration(30 * time.Second)
+	ctx, _ := context.WithTimeout(context.Background(), timeout)
+
+	client := &http.Client{}
+	req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

@@ -20,7 +20,7 @@ type Pair struct {
 // HexKey returns the RGB hex value of a Pair Key.
 func (p *Pair) HexKey() string {
 	r, g, b := color.YCbCrToRGB(p.Key.Y, p.Key.Cb, p.Key.Cr)
-	return fmt.Sprintf("%02x%02x%02x", r, g, b)
+	return fmt.Sprintf("#%02x%02x%02x", r, g, b)
 }
 
 // PairList is a slice of Pair structs.

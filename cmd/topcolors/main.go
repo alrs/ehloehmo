@@ -150,29 +150,8 @@ loop:
 	}
 }
 
-func main() {
-	input, output, db, err := openFiles()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer input.Close()
-	defer output.Close()
-	if !debris {
-		defer os.RemoveAll(boltPath)
-	}
-	defer db.Close()
-
-	err = createBuckets(db)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	failCh := make(chan *url.URL, 1)
-	resultCh := make(chan resultPair, 1)
-	doneCh := make(chan struct{})
-
-	go writeRoutine(resultCh, failCh, doneCh, db)
-
+func readRoutine(input *os.File, resultCh chan resultPair,
+	failCh chan *url.URL, db *bolt.DB) {
 	wg := sync.WaitGroup{}
 	scanner := bufio.NewScanner(input)
 	var lineNum uint64
@@ -203,7 +182,7 @@ func main() {
 			err = db.View(func(tx *bolt.Tx) error {
 				b := tx.Bucket([]byte(resultBucket))
 				if b == nil {
-					return fmt.Errorf("missing bucket %q", resultBucket)
+					log.Fatalf("missing bucket %q", resultBucket)
 				}
 				doneKey = b.Get([]byte(u.String()))
 				return nil
@@ -222,7 +201,7 @@ func main() {
 			err = db.View(func(tx *bolt.Tx) error {
 				b := tx.Bucket([]byte(failBucket))
 				if b == nil {
-					return fmt.Errorf("missing bucket %q", failBucket)
+					log.Fatalf("missing bucket %q", failBucket)
 				}
 				failKey = b.Get([]byte(u.String()))
 				return nil
@@ -267,6 +246,31 @@ func main() {
 	}
 
 	wg.Wait()
+}
+
+func main() {
+	input, output, db, err := openFiles()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer input.Close()
+	defer output.Close()
+	if !debris {
+		defer os.RemoveAll(boltPath)
+	}
+	defer db.Close()
+
+	err = createBuckets(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	failCh := make(chan *url.URL, 1)
+	resultCh := make(chan resultPair, 1)
+	doneCh := make(chan struct{})
+
+	go writeRoutine(resultCh, failCh, doneCh, db)
+	readRoutine(input, resultCh, failCh, db)
 
 	// close down the writer goroutine
 	close(doneCh)

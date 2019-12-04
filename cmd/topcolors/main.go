@@ -164,11 +164,18 @@ func main() {
 
 			// already ingested?
 			doneKey := []byte{}
-			_ = db.View(func(tx *bolt.Tx) error {
+			err = db.View(func(tx *bolt.Tx) error {
 				b := tx.Bucket([]byte(resultBucket))
+				if b == nil {
+					return fmt.Errorf("missing bucket %q", resultBucket)
+				}
 				doneKey = b.Get([]byte(u.String()))
 				return nil
 			})
+			if err != nil {
+				log.Fatalf("View():%v", err)
+			}
+
 			if string(doneKey) != "" {
 				log.Printf("%s already ingested, ignoring.", u.String())
 				return
@@ -176,11 +183,18 @@ func main() {
 
 			// already seen failure?
 			failKey := []byte{}
-			_ = db.View(func(tx *bolt.Tx) error {
+			err = db.View(func(tx *bolt.Tx) error {
 				b := tx.Bucket([]byte(failBucket))
+				if b == nil {
+					return fmt.Errorf("missing bucket %q", failBucket)
+				}
 				failKey = b.Get([]byte(u.String()))
 				return nil
 			})
+			if err != nil {
+				log.Fatalf("View():%v", err)
+			}
+
 			if string(failKey) != "" {
 				log.Printf("%s is a known bad URL, ignoring.", u.String())
 				return

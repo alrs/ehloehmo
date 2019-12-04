@@ -214,18 +214,21 @@ func main() {
 	writer := csv.NewWriter(output)
 	defer writer.Flush()
 
-	err = fb.ForEach(func(k, v []byte) error {
-		colors := []string{}
-		err := json.Unmarshal(v, &colors)
-		if err != nil {
-			return fmt.Errorf("Unmarshal():%v", err)
-		}
-		line := append([]string{string(k)}, colors...)
-		err = writer.Write(line)
-		if err != nil {
-			return fmt.Errorf("csv Write():%v", err)
-		}
-		return nil
+	err = db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(colorBucket))
+		return b.ForEach(func(k, v []byte) error {
+			colors := []string{}
+			err := json.Unmarshal(v, &colors)
+			if err != nil {
+				return fmt.Errorf("Unmarshal():%v", err)
+			}
+			line := append([]string{string(k)}, colors...)
+			err = writer.Write(line)
+			if err != nil {
+				return fmt.Errorf("csv Write():%v", err)
+			}
+			return nil
+		})
 	})
 	if err != nil {
 		log.Fatalf("colorBucket ForEach(): %v", err)

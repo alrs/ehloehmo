@@ -113,6 +113,7 @@ func main() {
 	doneCh := make(chan struct{})
 
 	go func() {
+	loop:
 		for {
 			select {
 			case failURL := <-failCh:
@@ -126,7 +127,9 @@ func main() {
 					log.Fatalf("recordResult():%v", err)
 				}
 			case <-doneCh:
-				break
+				close(failCh)
+				close(resultCh)
+				break loop
 			}
 		}
 	}()
@@ -138,8 +141,8 @@ func main() {
 	for scanner.Scan() {
 		text := scanner.Text()
 		pool <- struct{}{}
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
 			defer wg.Done()
 			defer func() { <-pool }()
 			// read a URL from the input file

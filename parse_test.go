@@ -20,9 +20,9 @@ func TestCSVReady(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := []string{"ffffff",
-		"9d1644",
-		"27a015",
+	expected := []string{"#ffffff",
+		"#9d1644",
+		"#27a015",
 	}
 	tmpl := "expected:%q got:%q"
 	if !reflect.DeepEqual(expected, got) {

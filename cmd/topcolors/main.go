@@ -20,7 +20,7 @@ const boltPath = "/tmp/topcolors.db"
 var outPath = "/tmp/topcolors.csv"
 var inPath = "testdata/input.txt"
 
-const colorBucket = "urls"
+const resultBucket = "urls"
 const failBucket = "fail"
 
 type resultPair struct {
@@ -48,7 +48,7 @@ func recordFailure(u *url.URL, db *bolt.DB) error {
 
 func recordResult(rp resultPair, db *bolt.DB) error {
 	return db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte(colorBucket))
+		b, err := tx.CreateBucketIfNotExists([]byte(resultBucket))
 		if err != nil {
 			return err
 		}
@@ -78,9 +78,9 @@ func createBuckets(db *bolt.DB) error {
 		return fmt.Errorf("Begin():%v", err)
 	}
 	defer tx.Commit()
-	_, err = tx.CreateBucket([]byte(colorBucket))
+	_, err = tx.CreateBucket([]byte(resultBucket))
 	if err != nil {
-		return fmt.Errorf("colorBucket CreateBucket():%v", err)
+		return fmt.Errorf("resultBucket CreateBucket():%v", err)
 	}
 	_, err = tx.CreateBucket([]byte(failBucket))
 	if err != nil {
@@ -155,7 +155,7 @@ func main() {
 			// already ingested?
 			doneKey := []byte{}
 			_ = db.View(func(tx *bolt.Tx) error {
-				b := tx.Bucket([]byte(colorBucket))
+				b := tx.Bucket([]byte(resultBucket))
 				doneKey = b.Get([]byte(u.String()))
 				return nil
 			})
@@ -214,16 +214,16 @@ func main() {
 		log.Fatalf("Begin():%v", err)
 	}
 	defer tx.Rollback()
-	fb := tx.Bucket([]byte(colorBucket))
+	fb := tx.Bucket([]byte(resultBucket))
 	if fb == nil {
-		log.Fatal(fmt.Errorf("Bucket %s not found", colorBucket))
+		log.Fatal(fmt.Errorf("Bucket %s not found", resultBucket))
 	}
 
 	writer := csv.NewWriter(output)
 	defer writer.Flush()
 
 	err = db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(colorBucket))
+		b := tx.Bucket([]byte(resultBucket))
 		return b.ForEach(func(k, v []byte) error {
 			colors := []string{}
 			err := json.Unmarshal(v, &colors)
@@ -239,6 +239,6 @@ func main() {
 		})
 	})
 	if err != nil {
-		log.Fatalf("colorBucket ForEach(): %v", err)
+		log.Fatalf("resultBucket ForEach(): %v", err)
 	}
 }

@@ -276,4 +276,7 @@ func main() {
 	close(doneCh)
 
 	err = publishResults(output, db)
+	if err != nil {
+		log.Fatalf("publishResults(): %v", err)
+	}
 }

@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"sync"
 
 	bolt "github.com/etcd-io/bbolt"
 )
@@ -95,9 +96,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	failCh := make(chan *url.URL)
-	resultCh := make(chan resultPair)
+	failCh := make(chan *url.URL, 1)
+	resultCh := make(chan resultPair, 1)
 	doneCh := make(chan struct{})
+
 	go func() {
 		for {
 			select {
@@ -117,12 +119,17 @@ func main() {
 		}
 	}()
 
+	wg := sync.WaitGroup{}
 	scanner := bufio.NewScanner(input)
 	var lineNum uint64
+	pool := make(chan struct{}, 4)
 	for scanner.Scan() {
 		text := scanner.Text()
-		func() {
-
+		pool <- struct{}{}
+		go func() {
+			wg.Add(1)
+			defer wg.Done()
+			defer func() { <-pool }()
 			// read a URL from the input file
 			lineNum++
 			u, err := url.Parse(text)
@@ -191,6 +198,7 @@ func main() {
 		}()
 	}
 
+	wg.Wait()
 	close(doneCh)
 
 	tx, err := db.Begin(false)

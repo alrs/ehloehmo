@@ -91,6 +91,29 @@ func createBuckets(db *bolt.DB) error {
 	return nil
 }
 
+func writeRoutine(resultCh chan resultPair, failCh chan *url.URL,
+	doneCh chan struct{}, db *bolt.DB) {
+loop:
+	for {
+		select {
+		case failURL := <-failCh:
+			err := recordFailure(failURL, db)
+			if err != nil {
+				log.Fatalf("recordFailure():%v", err)
+			}
+		case result := <-resultCh:
+			err := recordResult(result, db)
+			if err != nil {
+				log.Fatalf("recordResult():%v", err)
+			}
+		case <-doneCh:
+			close(failCh)
+			close(resultCh)
+			break loop
+		}
+	}
+}
+
 func main() {
 	input, output, db, err := openFiles()
 	if err != nil {
@@ -112,27 +135,7 @@ func main() {
 	resultCh := make(chan resultPair, 1)
 	doneCh := make(chan struct{})
 
-	go func() {
-	loop:
-		for {
-			select {
-			case failURL := <-failCh:
-				err := recordFailure(failURL, db)
-				if err != nil {
-					log.Fatalf("recordFailure():%v", err)
-				}
-			case result := <-resultCh:
-				err := recordResult(result, db)
-				if err != nil {
-					log.Fatalf("recordResult():%v", err)
-				}
-			case <-doneCh:
-				close(failCh)
-				close(resultCh)
-				break loop
-			}
-		}
-	}()
+	go writeRoutine(resultCh, failCh, doneCh, db)
 
 	wg := sync.WaitGroup{}
 	scanner := bufio.NewScanner(input)

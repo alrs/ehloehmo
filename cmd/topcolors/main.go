@@ -58,6 +58,42 @@ func recordResult(rp resultPair, db *bolt.DB) error {
 	})
 }
 
+func publishResults(output *os.File, db *bolt.DB) error {
+	tx, err := db.Begin(false)
+	if err != nil {
+		return fmt.Errorf("Begin():%v", err)
+	}
+	defer tx.Rollback()
+	fb := tx.Bucket([]byte(resultBucket))
+	if fb == nil {
+		return fmt.Errorf("bucket %s not found", resultBucket)
+	}
+
+	writer := csv.NewWriter(output)
+	defer writer.Flush()
+
+	err = db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(resultBucket))
+		return b.ForEach(func(k, v []byte) error {
+			colors := []string{}
+			err := json.Unmarshal(v, &colors)
+			if err != nil {
+				return fmt.Errorf("Unmarshal():%v", err)
+			}
+			line := append([]string{string(k)}, colors...)
+			err = writer.Write(line)
+			if err != nil {
+				return fmt.Errorf("csv Write():%v", err)
+			}
+			return nil
+		})
+	})
+	if err != nil {
+		return fmt.Errorf("resultBucket ForEach(): %v", err)
+	}
+	return nil
+}
+
 func openFiles() (*os.File, *os.File, *bolt.DB, error) {
 	input, err := os.Open(inPath)
 	if err != nil {
@@ -231,38 +267,9 @@ func main() {
 	}
 
 	wg.Wait()
+
+	// close down the writer goroutine
 	close(doneCh)
 
-	tx, err := db.Begin(false)
-	if err != nil {
-		log.Fatalf("Begin():%v", err)
-	}
-	defer tx.Rollback()
-	fb := tx.Bucket([]byte(resultBucket))
-	if fb == nil {
-		log.Fatal(fmt.Errorf("Bucket %s not found", resultBucket))
-	}
-
-	writer := csv.NewWriter(output)
-	defer writer.Flush()
-
-	err = db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(resultBucket))
-		return b.ForEach(func(k, v []byte) error {
-			colors := []string{}
-			err := json.Unmarshal(v, &colors)
-			if err != nil {
-				return fmt.Errorf("Unmarshal():%v", err)
-			}
-			line := append([]string{string(k)}, colors...)
-			err = writer.Write(line)
-			if err != nil {
-				return fmt.Errorf("csv Write():%v", err)
-			}
-			return nil
-		})
-	})
-	if err != nil {
-		log.Fatalf("resultBucket ForEach(): %v", err)
-	}
+	err = publishResults(output, db)
 }

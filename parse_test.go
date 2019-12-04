@@ -30,3 +30,29 @@ func TestCSVReady(t *testing.T) {
 	}
 	t.Logf(tmpl, expected, got)
 }
+
+func TestColorCounts(t *testing.T) {
+	cases := map[string]bool{
+		"testdata/bad.jpg":  false,
+		"testdata/good.jpg": true,
+		"testdata/four.jpg": true,
+	}
+	for fn, expectedSuccess := range cases {
+		f, err := os.Open(fn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = ColorCounts(f)
+		if expectedSuccess {
+			if err != nil {
+				t.Fatalf("%s expected success, got error: %v", fn, err)
+			}
+			t.Logf("%s got expected successful ColorCount()", fn)
+		} else {
+			if err == nil {
+				t.Fatalf("%s expected failure, none seen.", fn)
+			}
+			t.Logf("%s expected failure, got failure.", fn)
+		}
+	}
+}

@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/url"
 	"os"
-	"sync"
 
 	bolt "github.com/etcd-io/bbolt"
 )
@@ -21,17 +20,31 @@ const inPath = "testdata/input.txt"
 const colorBucket = "urls"
 const failBucket = "fail"
 
-type dbLock struct {
-	sync.Mutex
+type resultPair struct {
+	url      *url.URL
+	topThree []byte
 }
 
-func recordFailure(u *url.URL, b *bolt.Bucket) error {
-	log.Printf("recording failure of %s", u.String())
-	err := b.Put([]byte(u.String()), []byte("T"))
-	if err != nil {
-		return err
-	}
-	return nil
+func recordFailure(u *url.URL, db *bolt.DB) error {
+	log.Printf("recording failure for %s", u.String())
+	err := db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists([]byte(failBucket))
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte(u.String()), []byte("T"))
+	})
+	return err
+}
+
+func recordResult(rp resultPair, db *bolt.DB) error {
+	return db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists([]byte(colorBucket))
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte(rp.url.String()), rp.topThree)
+	})
 }
 
 func openFiles() (*os.File, *os.File, *bolt.DB, error) {
@@ -82,30 +95,33 @@ func main() {
 		log.Fatal(err)
 	}
 
+	failCh := make(chan *url.URL)
+	resultCh := make(chan resultPair)
+	doneCh := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case failURL := <-failCh:
+				err := recordFailure(failURL, db)
+				if err != nil {
+					log.Fatalf("recordFailure():%v", err)
+				}
+			case result := <-resultCh:
+				err := recordResult(result, db)
+				if err != nil {
+					log.Fatalf("recordResult():%v", err)
+				}
+			case <-doneCh:
+				break
+			}
+		}
+	}()
+
 	scanner := bufio.NewScanner(input)
 	var lineNum uint64
 	for scanner.Scan() {
 		text := scanner.Text()
 		func() {
-
-			// one transaction per loop
-			tx, err := db.Begin(true)
-			if err != nil {
-				log.Fatalf("Begin():%v", err)
-			}
-			defer tx.Commit()
-
-			// ready the failbucket
-			fb := tx.Bucket([]byte(failBucket))
-			if fb == nil {
-				log.Fatal(fmt.Errorf("Bucket %s not found", failBucket))
-			}
-
-			// ready the colorbucket
-			cb := tx.Bucket([]byte(colorBucket))
-			if cb == nil {
-				log.Fatal(fmt.Errorf("Bucket %s not found", colorBucket))
-			}
 
 			// read a URL from the input file
 			lineNum++
@@ -115,34 +131,40 @@ func main() {
 				return
 			}
 
+			// if the file extension isn't .jpeg, bail out
+			if !ehloehmo.IsJPEG(u) {
+				log.Printf("%s does not look to be a jpeg, ignoring", u.String())
+				return
+			}
+
 			// already ingested?
-			doneKey := cb.Get([]byte(u.String()))
+			doneKey := []byte{}
+			_ = db.View(func(tx *bolt.Tx) error {
+				b := tx.Bucket([]byte(colorBucket))
+				doneKey = b.Get([]byte(u.String()))
+				return nil
+			})
 			if string(doneKey) != "" {
 				log.Printf("%s already ingested, ignoring.", u.String())
 				return
 			}
 
 			// already seen failure?
-			failKey := fb.Get([]byte(u.String()))
+			failKey := []byte{}
+			_ = db.View(func(tx *bolt.Tx) error {
+				b := tx.Bucket([]byte(failBucket))
+				failKey = b.Get([]byte(u.String()))
+				return nil
+			})
 			if string(failKey) != "" {
 				log.Printf("%s is a known bad URL, ignoring.", u.String())
-				return
-			}
-
-			// if the file extension isn't .jpeg, bail out
-			if !ehloehmo.IsJPEG(u) {
-				log.Printf("%s does not look to be a jpeg, ignoring", u.String())
-				recordFailure(u, fb)
 				return
 			}
 
 			jpg, err := ehloehmo.GetFile(u)
 			if err != nil {
 				log.Print(err)
-				err := recordFailure(u, fb)
-				if err != nil {
-					log.Fatal(err)
-				}
+				failCh <- u
 				return
 			}
 			defer jpg.Close()
@@ -150,10 +172,7 @@ func main() {
 			cc, err := ehloehmo.ColorCounts(jpg)
 			if err != nil {
 				log.Printf("error counting colors in %s: %v", u.String(), err)
-				err := recordFailure(u, fb)
-				if err != nil {
-					log.Fatal(err)
-				}
+				failCh <- u
 				return
 			}
 
@@ -168,12 +187,11 @@ func main() {
 				log.Fatalf("Marshal():%v", err)
 			}
 
-			err = cb.Put([]byte(u.String()), ttJSON)
-			if err != nil {
-				log.Fatalf("colorBucket Put(): %v", err)
-			}
+			resultCh <- resultPair{u, ttJSON}
 		}()
 	}
+
+	close(doneCh)
 
 	tx, err := db.Begin(false)
 	if err != nil {

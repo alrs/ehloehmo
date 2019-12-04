@@ -19,6 +19,7 @@ const boltPath = "/tmp/topcolors.db"
 
 var outPath = "/tmp/topcolors.csv"
 var inPath = "testdata/input.txt"
+var debris = false
 
 const resultBucket = "urls"
 const failBucket = "fail"
@@ -31,6 +32,7 @@ type resultPair struct {
 func init() {
 	flag.StringVar(&outPath, "out", outPath, "path to csv output")
 	flag.StringVar(&inPath, "in", inPath, "path to input data")
+	flag.BoolVar(&debris, "debris", debris, "retain boltdb database on exit")
 	flag.Parse()
 }
 
@@ -96,7 +98,9 @@ func main() {
 	}
 	defer input.Close()
 	defer output.Close()
-	defer os.Remove(boltPath)
+	if !debris {
+		defer os.RemoveAll(boltPath)
+	}
 	defer db.Close()
 
 	err = createBuckets(db)

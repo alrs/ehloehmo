@@ -9,3 +9,7 @@ clean:
 	@rm -rf /tmp/topcolors.csv
 	@rm -rf bin
 	@rm -rf /tmp/topcolors.db
+
+.PHONY: test
+test:
+	go test -v ./...

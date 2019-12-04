@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/csv"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/alrs/ehloehmo"
 	"log"
@@ -14,9 +15,10 @@ import (
 	bolt "github.com/etcd-io/bbolt"
 )
 
-const outPath = "/tmp/topcolors.csv"
 const boltPath = "/tmp/topcolors.db"
-const inPath = "testdata/input.txt"
+
+var outPath = "/tmp/topcolors.csv"
+var inPath = "testdata/input.txt"
 
 const colorBucket = "urls"
 const failBucket = "fail"
@@ -24,6 +26,12 @@ const failBucket = "fail"
 type resultPair struct {
 	url      *url.URL
 	topThree []byte
+}
+
+func init() {
+	flag.StringVar(&outPath, "out", outPath, "path to csv output")
+	flag.StringVar(&inPath, "in", inPath, "path to input data")
+	flag.Parse()
 }
 
 func recordFailure(u *url.URL, db *bolt.DB) error {

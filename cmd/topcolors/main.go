@@ -91,6 +91,7 @@ func publishResults(output *os.File, db *bolt.DB) error {
 	if err != nil {
 		return fmt.Errorf("resultBucket ForEach(): %v", err)
 	}
+	log.Printf("result saved to file: %s", output.Name())
 	return nil
 }
 
